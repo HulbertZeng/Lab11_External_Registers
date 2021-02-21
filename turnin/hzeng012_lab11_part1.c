@@ -7,7 +7,7 @@
  * I acknowledge all content contained herein, excluding template or example
  * code, is my own original work.
  *
- *  Demo Link: Youtube URL>
+ *  Demo Link: https://youtu.be/BdnfEIKyhxg
  */ 
 #include <avr/io.h>
 #ifdef _SIMULATE_
@@ -29,28 +29,39 @@ void transmit_data(unsigned char data) {
 }
 
 enum display_states { display_start, display_inc, display_dec, display_reset, display_buffer };
-unsigned char num = 0xF0;
+unsigned char num = 0x00;
 
-void displaySMTick(state) {
-    unsigned char inc = (~PINA) & 0x01;
-    unsigned char dec = (~PINA) & 0x02;
+int displaySMTick(int state) {
+    unsigned char button = (~PINA) & 0x03;
 
     switch(state) {
         case display_start:
-            if(inc & dec) {
+            if(button == 0x03) {
                 state = display_reset;
-            } else if(inc & (num < 0xFF)) {
+            } else if(button == 0x02) {
                 state = display_inc;
-            } else if(dec & (num < 0x00)) {
+            } else if(button == 0x01) {
                 state = display_dec;
             } else {
                 transmit_data(num);
+                state = display_start;
             }
             break;
         case display_reset: num = 0; state = display_buffer; break;
-        case display_inc: ++num; state = display_buffer; break;
-        case display_dec: --num; state = display_buffer; break;
-        case display_buffer: if(!(inc | dec)) state = display_start; break;
+        case display_inc: 
+            if(num < 255) { 
+                ++num; 
+            }
+            state = display_buffer; break;
+        case display_dec: 
+            if(num > 0) { 
+                --num; 
+            }
+            state = display_buffer; break;
+        case display_buffer: 
+            if(button != 0x01 && button != 0x02) { 
+                state = display_start; 
+            } break;
         default: state = display_start; break;
     }
 
@@ -68,7 +79,7 @@ int main(void) {
     const char start = -1;
     // increment, decrement, and reset displayed value
     task1.state = start;
-    task1.period = 50;
+    task1.period = 30;
     task1.elapsedTime = task1.period;
     task1.TickFct = &displaySMTick;
 
